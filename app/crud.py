@@ -1,7 +1,7 @@
 from app.models import Product, Base
 from app.db import engine, SessionLocal
+from sqlalchemy import text
 
-# إنشاء الجداول
 Base.metadata.create_all(engine)
 
 def add_product(name, price):
@@ -9,6 +9,7 @@ def add_product(name, price):
     product = Product(name=name, price=price)
     session.add(product)
     session.commit()
+    session.refresh(product)  # للحصول على id بعد الإضافة
     product_data = {"id": product.id, "name": product.name, "price": product.price}
     session.close()
     return product_data
@@ -22,18 +23,19 @@ def list_products():
 
 def get_product(product_id):
     session = SessionLocal()
-    product = session.query(Product).get(product_id)
+    product = session.query(Product).filter(Product.id == product_id).first()
     data = {"id": product.id, "name": product.name, "price": product.price} if product else None
     session.close()
     return data
 
 def update_product(product_id, new_name, new_price):
     session = SessionLocal()
-    product = session.query(Product).get(product_id)
+    product = session.query(Product).filter(Product.id == product_id).first()
     if product:
         product.name = new_name
         product.price = new_price
         session.commit()
+        session.refresh(product)
         data = {"id": product.id, "name": product.name, "price": product.price}
     else:
         data = None
@@ -42,7 +44,7 @@ def update_product(product_id, new_name, new_price):
 
 def delete_product(product_id):
     session = SessionLocal()
-    product = session.query(Product).get(product_id)
+    product = session.query(Product).filter(Product.id == product_id).first()
     if product:
         session.delete(product)
         session.commit()
@@ -52,8 +54,14 @@ def delete_product(product_id):
     session.close()
     return result
 
+
+
+
 def reset_products():
     session = SessionLocal()
     session.query(Product).delete()
+    session.commit()
+    # إعادة ضبط sequence بشكل صحيح
+    session.execute(text('ALTER SEQUENCE products_id_seq RESTART WITH 1'))
     session.commit()
     session.close()
